@@ -1,0 +1,346 @@
+import datetime
+
+# Transaction Class (Superclass)
+class Transaction:
+    def __init__(self, transaction_id, amount, date, category):
+        self.transaction_id = transaction_id
+        self.amount = amount
+        self.date = datetime.datetime.strptime(date, "%Y-%m-%d")
+        self.category = category
+
+    # Print details of the transaction
+    def print_details(self):
+        print(f"ID: {self.transaction_id}, Amount: {self.amount}, Date: {self.date.date()}, Category: {self.category}")
+
+
+# Food Transaction Class (First subclass)
+class FoodTransaction(Transaction):
+    def __init__(self, transaction_id, amount, date, category, meal_type, location):
+        super().__init__(transaction_id, amount, date, category)
+        self.meal_type = meal_type
+        self.location = location
+
+    # Print details including meal type and location
+    def print_details(self):
+        super().print_details()
+        print(f"Meal Type: {self.meal_type}, Location: {self.location}")
+
+
+# Service Transaction Class (Second subclass)
+class ServiceTransaction(Transaction):
+    def __init__(self, transaction_id, amount, date, category, service_type):
+        super().__init__(transaction_id, amount, date, category)
+        self.service_type = service_type
+
+    # Print details including service type
+    def print_details(self):
+        super().print_details()
+        print(f"Service Type: {self.service_type}")
+#----------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+# this function uses the 'try-except' clause to make sure that the user is inputting the correct syntax and prompt errors if the're not
+# we added a prompt for the subclasses to help us understand which transaction type they made
+# Add a transaction
+def add_transaction(transaction_file):
+    print("\nPlease select which transaction type:")
+    print("1. Food Transaction")
+    print("2. Service Transaction")
+
+    # Validate transaction type input
+    while True:
+        transaction_type = input("Enter your choice (1 or 2): ").strip()
+        if transaction_type in ['1', '2']:
+            break
+        print("Invalid choice. Please enter '1' for Food or '2' for Service.")
+
+    # Collect transaction details
+    while True:
+        try:
+            transaction_id = int(input("Enter the transaction ID: "))
+            break
+        except ValueError:
+            print("Invalid input. Please enter a valid transaction ID that is a Int Numeric Value.")
+
+    while True:
+        try:
+            amount = float(input("Enter the Amount for the Transaction: "))
+            break
+        except ValueError:
+            print("Invalid input. Please enter a valid numeric transaction amount.")
+
+    while True:
+        date = input("Enter the date in (YYYY-MM-DD) format for the transaction: ")
+        try:
+            datetime.datetime.strptime(date, "%Y-%m-%d")  # Validate date format
+            break
+        except ValueError:
+            print("Invalid date format. Please use YYYY-MM-DD.")
+
+    # Collect additional Details based on the transaction and category type using the subclasses attributes
+    if transaction_type == '1':
+        category = "Food"
+        meal_type = input("Enter the type of meal (e.g., Breakfast, Lunch, Dinner): ").strip()
+        location = input("Enter the location of the meal: ").strip()
+        transaction = FoodTransaction(transaction_id, amount, date, category, meal_type, location)
+    elif transaction_type == '2':
+        category = "Service"
+        service_type = input("Enter the type of service provided (e.g., Car wash, Dental service): ").strip()
+        transaction = ServiceTransaction(transaction_id, amount, date, category, service_type)
+
+    # Write transaction to file that uses append
+    with open(transaction_file, 'a') as file:
+        if transaction_type == '1':  # Food Transaction
+            file.write(f"{transaction.transaction_id},{transaction.amount},{transaction.date.date()},{transaction.category},{transaction.meal_type},{transaction.location}\n")
+        elif transaction_type == '2':  # Service Transaction
+            file.write(f"{transaction.transaction_id},{transaction.amount},{transaction.date.date()},{transaction.category},{transaction.service_type}\n")
+
+    print("Transaction added successfully.")
+#--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+# View transactions by the date range and type
+def view_transactions(transaction_file):
+    # Input date range using Start and End
+    start_date = input("Enter the start date (YYYY-MM-DD): ").strip()
+    end_date = input("Enter the end date (YYYY-MM-DD): ").strip()
+
+    # Input transaction type
+    print("\nPlease select which transaction type to view:")
+    print("1. Food Transaction")
+    print("2. Service Transaction")
+    while True:
+        transaction_type = input("Enter your choice (1 or 2): ").strip()
+        if transaction_type in ['1', '2']:
+            break
+        print("Invalid choice. Please enter '1' for Food or '2' for Service.")
+
+    # helps correlate which choice the user made to the correct category
+    category_type = "Food" if transaction_type == '1' else "Service"
+
+    try:
+        # Convert input dates to datetime objects
+        start_date = datetime.datetime.strptime(start_date, "%Y-%m-%d")
+        end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d")
+
+        with open(transaction_file, 'r') as file:
+            print("\nMatching Transactions:")
+            found = False
+
+            for line in file:
+                parts = line.strip().split(',')
+                if len(parts) < 4:  # Ensure valid data
+                    continue
+
+                try:
+                    # Validate and parse the date field
+                    # Only process the line if the date is in the correct format of (YYYY-MM-DD)
+                    date_from_file = datetime.datetime.strptime(parts[2], "%Y-%m-%d")
+                except ValueError:
+                    # If the date format is invalid, skip this line and move to the next one
+                    continue
+
+                category = parts[3]
+
+                # Check if the transaction matches criteria
+                if start_date <= date_from_file <= end_date and category_type == category:
+                    if category == 'Food' and len(parts) >= 6:
+                        transaction = FoodTransaction(parts[0], float(parts[1]), parts[2], parts[3], parts[4], parts[5])
+                    elif category == 'Service' and len(parts) >= 5:
+                        transaction = ServiceTransaction(parts[0], float(parts[1]), parts[2], parts[3], parts[4])
+                    else:
+                        transaction = Transaction(parts[0], float(parts[1]), parts[2], parts[3])
+
+                    transaction.print_details()
+                    found = True
+
+            if not found:
+                print("No transactions found matching the criteria.")
+
+    except FileNotFoundError:
+        print("The file does not exist.")
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+#--------------------------------------------------------------------------------------------------------------------------------------------------------
+
+
+
+
+# Modify a transaction
+def modify_transaction(transaction_file):
+   # getting the user input for transaction filtering by inputting the transaction date and type
+    try:
+        transaction_date = input("Enter the transaction date (YYYY-MM-DD): ")
+        transaction_type = input("Enter the transaction type: ")
+
+  # turn the input transaction date to a datetime object
+        transaction_date = datetime.datetime.strptime(transaction_date, "%Y-%m-%d")
+
+  # read all the transaction from the file and read the file line by line
+        with open(transaction_file, 'r') as file:
+            transactions = file.readlines()
+
+# finding the transaction by matching the user's criteria
+# we list to store matching transactions, loop through all the transactions, split the line into components, skip malformed lines with insufficient data
+        matching_transactions = []
+        for idx, line in enumerate(transactions):
+            parts = line.strip().split(',')
+            if len(parts) < 4:  # Ensure valid data
+                continue
+
+            date_from_file = datetime.datetime.strptime(parts[2], "%Y-%m-%d")
+            category = parts[3].lower()
+
+# display the matching transaction details
+            if date_from_file == transaction_date and category == transaction_type.lower():
+                print(f"ID: {parts[0]}, Amount: {parts[1]}, Date: {parts[2]}, Category: {parts[3]}")
+                matching_transactions.append((idx, parts))
+
+        if not matching_transactions:
+            print("No matching transactions found.")
+            return
+# getting the new values we want from the user to make the alterations
+        transaction_id = input("Enter the ID of the transaction you want to modify: ")
+        for idx, parts in matching_transactions:
+            if parts[0] == transaction_id:
+                new_amount = input(f"Enter new amount (current: {parts[1]}): ")
+                new_date = input(f"Enter new date (current: {parts[2]}, format YYYY-MM-DD): ")
+                new_category = input(f"Enter new category (current: {parts[3]}): ")
+
+# here at this point we can make the updates
+                parts[1] = new_amount
+                parts[2] = new_date
+                parts[3] = new_category
+                transactions[idx] = ','.join(parts) + '\n'
+
+                with open(transaction_file, 'w') as file:
+                    file.writelines(transactions)
+
+                print("Transaction was updated successfully.")
+                return
+
+        print("Transaction ID is not found.")
+
+    except FileNotFoundError:
+        print("The file does not exist.")
+    except ValueError as e:
+        print(f"Invalid input: {e}")
+#------------------------------------------------------------------------------------------------------------------------------------------
+
+
+def display_statistics(transaction_file):
+    try:
+        # Initialize totals and counters for Food and Service transaction
+        total_food_spent = 0
+        total_food_transactions = 0
+        meal_type_spending = {} # Allows us to store total spending by meal type
+        daily_food_spending = {}  # Allows us to store total spending by date and for the food transactions
+
+        total_service_spent = 0
+        total_service_transactions = 0
+        service_type_spending = {}  # Allows us to store total spending by Service type
+        daily_service_transactions = {}  # Store the count of Service transactions by date
+
+        # Read transactions from the file
+        with open(transaction_file, 'r') as file:
+            for line in file:
+                parts = line.strip().split(',')
+                if len(parts) < 4:  # Skip malformed lines
+                    continue
+
+                # Analyze transaction details
+                transaction_id, amount, date, category = parts[:4]
+                amount = float(amount)
+
+                # Process the Food Transactions
+                if category.lower() == 'food' and len(parts) >= 6:
+                    meal_type = parts[4]
+                    total_food_spent += amount
+                    total_food_transactions += 1
+                    # Update the meal type totals
+                    if meal_type not in meal_type_spending:
+                       meal_type_spending[meal_type] = 0
+                    meal_type_spending[meal_type] += amount
+                    # Update the daily totals for food
+                    if date not in daily_food_spending:
+                        daily_food_spending[date] = 0
+                    daily_food_spending[date] += amount
+
+                # Process Service Transactions
+                elif category.lower() == 'service' and len(parts) >= 5:
+                    service_type = parts[4]
+                    total_service_spent += amount
+                    total_service_transactions += 1
+                    # Update the service type totals
+                    if service_type not in  service_type_spending:
+                         service_type_spending[service_type] = 0
+                    service_type_spending[service_type] += amount
+                    # Update the daily counts for service
+                    if date not in daily_service_transactions:
+                        daily_service_transactions[date] = 0
+                    daily_service_transactions[date] += 1
+
+        # Displaying statistics for Food Transactions
+        print("\nStatistics for Food Transactions:")
+        print(f"Total Amount Spent on Food: ${total_food_spent:.2f}")
+        if total_food_transactions > 0:
+            print(f"Average Amount Spent on Food: ${total_food_spent / total_food_transactions:.2f}")
+        print("Amount Spent per Meal Type:")
+        for meal_type, total in meal_type_spending.items():
+            print(f"  {meal_type}: ${total:.2f}")
+        print("Amount Spent per Date:")
+        for date, total in daily_food_spending.items():
+            print(f"  {date}: ${total:.2f}")
+
+        # Displaying statistics for Service Transactions
+        print("\nStatistics for Service Transactions:")
+        print(f"Total Amount Spent on Services: ${total_service_spent:.2f}")
+        if total_service_transactions > 0:
+            print(f"Average Amount Spent on Services: ${total_service_spent / total_service_transactions:.2f}")
+        print("Amount Spent per Service Type:")
+        for service_type, total in daily_food_spending.items():
+            print(f"  {service_type}: ${total:.2f}")
+        print("Number of Service Transactions per Date:")
+        for date, count in daily_service_transactions.items():
+            print(f"  {date}: {count} transaction(s)")
+
+    except FileNotFoundError:
+        print("The transactions file does not exist.")
+    except ValueError as e:
+        print(f"An Error occured whil processing the data: {e}")
+
+
+#---------------------------------------------------------------------------------------------------------------------------------------------
+# Main Menu
+def main():
+    transaction_file = 'transactions.txt'
+    while True:
+        print("\nWhat would you like to do:")
+        print("1. Add a transaction")
+        print("2. View the transactions by date and type")
+        print("3. Modify a transaction")
+        print("4. Display the Satistics")
+        print("5. Exit")
+        choice = input("Enter your choice: ")
+        if choice == '1':
+            add_transaction(transaction_file)
+        elif choice == '2':
+            view_transactions(transaction_file)
+        elif choice == '3':
+            modify_transaction(transaction_file)
+        elif choice == '4':
+            display_statistics(transaction_file)
+        elif choice == '5':
+            print("Exiting the program.")
+            break
+        else:
+            print("Invalid choice. Please try again.")
+
+
+if __name__ == "__main__":
+    main()
+
